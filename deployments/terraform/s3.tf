@@ -7,7 +7,7 @@ resource "random_string" "bucket_suffix" {
 module "s3_bucket" {
   source = "terraform-aws-modules/s3-bucket/aws"
 
-  bucket = "${vars.project_name}-${random_string.bucket_suffix.result}"
+  bucket = "${var.project_name}-${random_string.bucket_suffix.result}"
   acl    = "private"
   block_public_acls       = true 
   block_public_policy     = true 
@@ -15,6 +15,6 @@ module "s3_bucket" {
   restrict_public_buckets = true
   
   tags = {
-    Name        = vars.project_name
+    Name        = var.project_name
   }
 }
