@@ -4,7 +4,7 @@ resource "random_string" "bucket_suffix" {
   upper   = false
 }
 
-module "s3_bucket" {
+module "timetracker_s3_bucket" {
   source = "terraform-aws-modules/s3-bucket/aws"
 
   bucket = "${var.project_name}-${random_string.bucket_suffix.result}"
