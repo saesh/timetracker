@@ -61,3 +61,13 @@ resource "aws_iam_role_policy_attachment" "AmazonS3FullAccess" {
   role       = aws_iam_role.iam_for_lambda_timetracker.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
+
+resource "aws_lambda_permission" "allow_apigw_timetracker_lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.timetracker_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  # More: http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html
+  source_arn = "${aws_api_gateway_rest_api.timetracker-tf.execution_arn}/*/*"
+}
