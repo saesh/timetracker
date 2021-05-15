@@ -32,7 +32,7 @@ func (r *S3TimelogRepository) Add(timelog Timelog) error {
 		return err
 	}
 
-	fileEntry := strings.TrimSpace(fmt.Sprintf("%v %v %v\n", timelog.Type, timelog.Description, timelog.Timestamp))
+	fileEntry := fmt.Sprintf("%v %v %v\n", timelog.Type, strings.TrimSpace(timelog.Description), strings.TrimSpace(timelog.Timestamp))
 
 	timeclockFile.Seek(0, 2)
 	_, err = timeclockFile.WriteString(fileEntry)
