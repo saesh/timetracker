@@ -1,6 +1,7 @@
 package timelog
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -32,7 +33,10 @@ func (r *S3TimelogRepository) Add(timelog Timelog) error {
 		return err
 	}
 
-	fileEntry := fmt.Sprintf("%v %v %v\n", timelog.Type, strings.TrimSpace(timelog.Description), strings.TrimSpace(timelog.Timestamp))
+	fileEntry, err := timeLogEntry(timelog)
+	if err != nil {
+		return err
+	}
 
 	timeclockFile.Seek(0, 2)
 	_, err = timeclockFile.WriteString(fileEntry)
@@ -47,6 +51,20 @@ func (r *S3TimelogRepository) Add(timelog Timelog) error {
 	}
 
 	return nil
+}
+
+func timeLogEntry(timelog Timelog) (string, error) {
+	var fileEntry string
+
+	if timelog.Type == "o" {
+		fileEntry = fmt.Sprintf("%v %v\n", timelog.Type, strings.TrimSpace(timelog.Timestamp))
+	} else if timelog.Type == "i" {
+		fileEntry = fmt.Sprintf("%v %v %v\n", timelog.Type, strings.TrimSpace(timelog.Description), strings.TrimSpace(timelog.Timestamp))
+	} else {
+		return "", errors.New("unrecognized timelog type")
+	}
+
+	return fileEntry, nil
 }
 
 func downloadS3(session *session.Session, writer io.WriterAt, bucket, key string) error {
