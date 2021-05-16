@@ -1,6 +1,6 @@
 locals {
   timetracker_release_file = "../../target/timetracker.zip"
-  timetracker_function_name = "TimeTracker-TF"
+  timetracker_function_name = "TimeTracker"
 }
 
 resource "aws_iam_role" "iam_for_lambda_timetracker" {
@@ -69,5 +69,5 @@ resource "aws_lambda_permission" "allow_apigw_timetracker_lambda" {
   principal     = "apigateway.amazonaws.com"
 
   # More: http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html
-  source_arn = "${aws_api_gateway_rest_api.timetracker-tf.execution_arn}/*/*"
+  source_arn = "${aws_api_gateway_rest_api.timetracker.execution_arn}/*/*"
 }

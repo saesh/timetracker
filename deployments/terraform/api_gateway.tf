@@ -1,5 +1,5 @@
-resource "aws_api_gateway_rest_api" "timetracker-tf" {
-  name = "timetracker-tf"
+resource "aws_api_gateway_rest_api" "timetracker" {
+  name = "TimeTracker"
 
   endpoint_configuration {
     types = ["REGIONAL"]
@@ -7,20 +7,19 @@ resource "aws_api_gateway_rest_api" "timetracker-tf" {
 }
 
 resource "aws_api_gateway_resource" "start" {
-  rest_api_id = aws_api_gateway_rest_api.timetracker-tf.id
-  parent_id   = aws_api_gateway_rest_api.timetracker-tf.root_resource_id
+  rest_api_id = aws_api_gateway_rest_api.timetracker.id
+  parent_id   = aws_api_gateway_rest_api.timetracker.root_resource_id
   path_part   = "start"
 }
 
 resource "aws_api_gateway_resource" "stop" {
-  rest_api_id = aws_api_gateway_rest_api.timetracker-tf.id
-  parent_id   = aws_api_gateway_rest_api.timetracker-tf.root_resource_id
+  rest_api_id = aws_api_gateway_rest_api.timetracker.id
+  parent_id   = aws_api_gateway_rest_api.timetracker.root_resource_id
   path_part   = "stop"
 }
 
-
 resource "aws_api_gateway_method" "start" {
-  rest_api_id   = aws_api_gateway_rest_api.timetracker-tf.id
+  rest_api_id   = aws_api_gateway_rest_api.timetracker.id
   resource_id   = aws_api_gateway_resource.start.id
   http_method   = "POST"
   authorization = "CUSTOM"
@@ -28,7 +27,7 @@ resource "aws_api_gateway_method" "start" {
 }
 
 resource "aws_api_gateway_method" "stop" {
-  rest_api_id   = aws_api_gateway_rest_api.timetracker-tf.id
+  rest_api_id   = aws_api_gateway_rest_api.timetracker.id
   resource_id   = aws_api_gateway_resource.stop.id
   http_method   = "POST"
   authorization = "CUSTOM"
@@ -36,7 +35,7 @@ resource "aws_api_gateway_method" "stop" {
 }
 
 resource "aws_api_gateway_integration" "start_timetracker_lambda" {
-  rest_api_id             = aws_api_gateway_rest_api.timetracker-tf.id
+  rest_api_id             = aws_api_gateway_rest_api.timetracker.id
   resource_id             = aws_api_gateway_method.start.resource_id
   http_method             = aws_api_gateway_method.start.http_method
 
@@ -46,7 +45,7 @@ resource "aws_api_gateway_integration" "start_timetracker_lambda" {
 }
 
 resource "aws_api_gateway_integration" "stop_timetracker_lambda" {
-  rest_api_id             = aws_api_gateway_rest_api.timetracker-tf.id
+  rest_api_id             = aws_api_gateway_rest_api.timetracker.id
   resource_id             = aws_api_gateway_method.stop.resource_id
   http_method             = aws_api_gateway_method.stop.http_method
 
@@ -55,10 +54,9 @@ resource "aws_api_gateway_integration" "stop_timetracker_lambda" {
   uri                     = aws_lambda_function.timetracker_lambda.invoke_arn
 }
 
-resource "aws_iam_role" "s3_api_gateway_role" {
-  name = "s3-api-gateyway-role"
+resource "aws_iam_role" "timetracker_api_gateway_role" {
+  name = "timetracker-api-gateway-role"
 
-  # Create Trust Policy for API Gateway
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -77,18 +75,18 @@ resource "aws_iam_role" "s3_api_gateway_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "AmazonS3ReadOnlyAccess" {
-  role       = aws_iam_role.s3_api_gateway_role.name
+  role       = aws_iam_role.timetracker_api_gateway_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
 resource "aws_api_gateway_resource" "file" {
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
-  parent_id   = "${aws_api_gateway_rest_api.timetracker-tf.root_resource_id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
+  parent_id   = "${aws_api_gateway_rest_api.timetracker.root_resource_id}"
   path_part   = "{file}"
 }
 
 resource "aws_api_gateway_method" "file" {
-  rest_api_id   = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id   = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id   = "${aws_api_gateway_resource.file.id}"
   http_method   = "GET"
   authorization = "CUSTOM"
@@ -99,8 +97,8 @@ resource "aws_api_gateway_method" "file" {
   }
 }
 
-resource "aws_api_gateway_integration" "S3Integration" {
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+resource "aws_api_gateway_integration" "S3_integration" {
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
 
@@ -116,11 +114,11 @@ resource "aws_api_gateway_integration" "S3Integration" {
 
   # See uri description: https://docs.aws.amazon.com/apigateway/api-reference/resource/integration/
   uri         = "arn:aws:apigateway:${var.aws_region}:s3:path//{bucket}/{object}"
-  credentials = "${aws_iam_role.s3_api_gateway_role.arn}"
+  credentials = "${aws_iam_role.timetracker_api_gateway_role.arn}"
 }
 
 resource "aws_api_gateway_method_response" "OK" {
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "200"
@@ -137,27 +135,27 @@ resource "aws_api_gateway_method_response" "OK" {
 }
 
 resource "aws_api_gateway_method_response" "BadRequest" {
-  depends_on = [aws_api_gateway_integration.S3Integration]
+  depends_on = [aws_api_gateway_integration.S3_integration]
 
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "400"
 }
 
 resource "aws_api_gateway_method_response" "InternalServerError" {
-  depends_on = [aws_api_gateway_integration.S3Integration]
+  depends_on = [aws_api_gateway_integration.S3_integration]
 
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "500"
 }
 
 resource "aws_api_gateway_integration_response" "IntegrationResponse200" {
-  depends_on = [aws_api_gateway_integration.S3Integration]
+  depends_on = [aws_api_gateway_integration.S3_integration]
 
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "${aws_api_gateway_method_response.OK.status_code}"
@@ -170,9 +168,9 @@ resource "aws_api_gateway_integration_response" "IntegrationResponse200" {
 }
 
 resource "aws_api_gateway_integration_response" "IntegrationResponse400" {
-  depends_on = [aws_api_gateway_integration.S3Integration]
+  depends_on = [aws_api_gateway_integration.S3_integration]
 
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "${aws_api_gateway_method_response.BadRequest.status_code}"
@@ -181,9 +179,9 @@ resource "aws_api_gateway_integration_response" "IntegrationResponse400" {
 }
 
 resource "aws_api_gateway_integration_response" "IntegrationResponse500" {
-  depends_on = [aws_api_gateway_integration.S3Integration]
+  depends_on = [aws_api_gateway_integration.S3_integration]
 
-  rest_api_id = "${aws_api_gateway_rest_api.timetracker-tf.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.timetracker.id}"
   resource_id = "${aws_api_gateway_resource.file.id}"
   http_method = "${aws_api_gateway_method.file.http_method}"
   status_code = "${aws_api_gateway_method_response.InternalServerError.status_code}"
@@ -192,37 +190,16 @@ resource "aws_api_gateway_integration_response" "IntegrationResponse500" {
 }
 
 resource "aws_api_gateway_authorizer" "authorizer" {
-  name                             = "Authorizer-TF"
-  rest_api_id                      = aws_api_gateway_rest_api.timetracker-tf.id
+  name                             = "Authorizer"
+  rest_api_id                      = aws_api_gateway_rest_api.timetracker.id
   authorizer_uri                   = aws_lambda_function.authorizer_lambda.invoke_arn
-  authorizer_credentials           = aws_iam_role.api_gateway_auth_invocation.arn
+  authorizer_credentials           = aws_iam_role.timetracker_api_gateway_role.arn
   authorizer_result_ttl_in_seconds = 0
-}
-
-resource "aws_iam_role" "api_gateway_auth_invocation" {
-  name = "api_gateway_auth_invocation"
-  path = "/"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "apigateway.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
 }
 
 resource "aws_iam_role_policy" "api_gateway_auth_policy" {
   name = "default"
-  role = aws_iam_role.api_gateway_auth_invocation.id
+  role = aws_iam_role.timetracker_api_gateway_role.id
 
   policy = <<EOF
 {
@@ -238,14 +215,14 @@ resource "aws_iam_role_policy" "api_gateway_auth_policy" {
 EOF
 }
 
-resource "aws_api_gateway_deployment" "timetracker-tf" {
-  rest_api_id = aws_api_gateway_rest_api.timetracker-tf.id
+resource "aws_api_gateway_deployment" "timetracker" {
+  rest_api_id = aws_api_gateway_rest_api.timetracker.id
   stage_name = "timetracker"
 
   depends_on = [
     aws_api_gateway_integration.start_timetracker_lambda,
     aws_api_gateway_integration.stop_timetracker_lambda,
-    aws_api_gateway_integration.S3Integration,
+    aws_api_gateway_integration.S3_integration,
   ]
 
   triggers = {
@@ -258,7 +235,7 @@ resource "aws_api_gateway_deployment" "timetracker-tf" {
         aws_api_gateway_method.file.id,
         aws_api_gateway_integration.start_timetracker_lambda.id,
         aws_api_gateway_integration.stop_timetracker_lambda.id,
-        aws_api_gateway_integration.S3Integration.id,
+        aws_api_gateway_integration.S3_integration.id,
         aws_api_gateway_authorizer.authorizer.id,
     ]))
   }
@@ -269,5 +246,5 @@ resource "aws_api_gateway_deployment" "timetracker-tf" {
 }
 
 output "base_url" {
-  value = aws_api_gateway_deployment.timetracker-tf.invoke_url
+  value = aws_api_gateway_deployment.timetracker.invoke_url
 }
