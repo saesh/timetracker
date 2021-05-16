@@ -23,14 +23,16 @@ resource "aws_api_gateway_method" "start" {
   rest_api_id   = aws_api_gateway_rest_api.timetracker-tf.id
   resource_id   = aws_api_gateway_resource.start.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = "${aws_api_gateway_authorizer.authorizer.id}"
 }
 
 resource "aws_api_gateway_method" "stop" {
   rest_api_id   = aws_api_gateway_rest_api.timetracker-tf.id
   resource_id   = aws_api_gateway_resource.stop.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = "${aws_api_gateway_authorizer.authorizer.id}"
 }
 
 resource "aws_api_gateway_integration" "start_timetracker_lambda" {
@@ -89,7 +91,8 @@ resource "aws_api_gateway_method" "file" {
   rest_api_id   = "${aws_api_gateway_rest_api.timetracker-tf.id}"
   resource_id   = "${aws_api_gateway_resource.file.id}"
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "CUSTOM"
+  authorizer_id = "${aws_api_gateway_authorizer.authorizer.id}"
 
   request_parameters = {
     "method.request.path.file" = true
@@ -188,6 +191,53 @@ resource "aws_api_gateway_integration_response" "IntegrationResponse500" {
   selection_pattern = "5\\d{2}"
 }
 
+resource "aws_api_gateway_authorizer" "authorizer" {
+  name                             = "Authorizer-TF"
+  rest_api_id                      = aws_api_gateway_rest_api.timetracker-tf.id
+  authorizer_uri                   = aws_lambda_function.authorizer_lambda.invoke_arn
+  authorizer_credentials           = aws_iam_role.api_gateway_auth_invocation.arn
+  authorizer_result_ttl_in_seconds = 0
+}
+
+resource "aws_iam_role" "api_gateway_auth_invocation" {
+  name = "api_gateway_auth_invocation"
+  path = "/"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "apigateway.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "api_gateway_auth_policy" {
+  name = "default"
+  role = aws_iam_role.api_gateway_auth_invocation.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "lambda:InvokeFunction",
+      "Effect": "Allow",
+      "Resource": "${aws_lambda_function.authorizer_lambda.arn}"
+    }
+  ]
+}
+EOF
+}
+
 resource "aws_api_gateway_deployment" "timetracker-tf" {
   rest_api_id = aws_api_gateway_rest_api.timetracker-tf.id
   stage_name = "timetracker"
@@ -209,6 +259,7 @@ resource "aws_api_gateway_deployment" "timetracker-tf" {
         aws_api_gateway_integration.start_timetracker_lambda.id,
         aws_api_gateway_integration.stop_timetracker_lambda.id,
         aws_api_gateway_integration.S3Integration.id,
+        aws_api_gateway_authorizer.authorizer.id,
     ]))
   }
 
