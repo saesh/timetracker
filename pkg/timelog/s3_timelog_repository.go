@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -21,7 +22,7 @@ type S3TimelogRepository struct {
 }
 
 // Add appends the timelog entry to the timelog file in an S3 bucket
-func (r *S3TimelogRepository) Add(timelog Timelog) error {
+func (r *S3TimelogRepository) Add(timelog *Timelog) error {
 	timeclockFile, err := os.Create("/tmp/" + r.Key)
 	if err != nil {
 		return err
@@ -33,18 +34,18 @@ func (r *S3TimelogRepository) Add(timelog Timelog) error {
 		return err
 	}
 
-	fileEntry, err := timeLogEntry(timelog)
+	fileEntry, err := timelogToFileEntry(timelog)
 	if err != nil {
 		return err
 	}
 
-	timeclockFile.Seek(0, 2)
+	timeclockFile.Seek(0, io.SeekEnd)
 	_, err = timeclockFile.WriteString(fileEntry)
 	if err != nil {
 		return err
 	}
 
-	timeclockFile.Seek(0, 0)
+	timeclockFile.Seek(0, io.SeekStart)
 	err = uploadS3(r.AwsSession, timeclockFile, r.Bucket, r.Key)
 	if err != nil {
 		return err
@@ -53,7 +54,27 @@ func (r *S3TimelogRepository) Add(timelog Timelog) error {
 	return nil
 }
 
-func timeLogEntry(timelog Timelog) (string, error) {
+func (r *S3TimelogRepository) GetLast() (*Timelog, error) {
+	timeclockFile, err := os.Create(fmt.Sprintf("%v%v.%v", "/tmp/", r.Key, time.Now().Unix()))
+	if err != nil {
+		return nil, err
+	}
+	defer timeclockFile.Close()
+
+	err = downloadS3(r.AwsSession, timeclockFile, r.Bucket, r.Key)
+	if err != nil {
+		return nil, err
+	}
+
+	timelog, err := lastTimelogEntry(timeclockFile)
+	if err != nil {
+		return nil, err
+	}
+
+	return timelog, nil
+}
+
+func timelogToFileEntry(timelog *Timelog) (string, error) {
 	var fileEntry string
 
 	if timelog.Type == "o" {
@@ -98,4 +119,41 @@ func uploadS3(session *session.Session, file io.Reader, bucket, key string) erro
 	})
 
 	return err
+}
+
+func lastTimelogEntry(file *os.File) (*Timelog, error) {
+	line := ""
+	var offset int64 = 0
+
+	stat, _ := file.Stat()
+	fileSize := stat.Size()
+
+	for {
+		offset -= 1
+		file.Seek(offset, io.SeekEnd)
+		char := make([]byte, 1)
+		file.Read(char)
+
+		if offset != -1 && (char[0] == 10 || char[0] == 13) {
+			break
+		}
+
+		line = fmt.Sprintf("%s%s", string(char), line)
+
+		if offset == -fileSize {
+			break
+		}
+	}
+
+	timelogElements := strings.Split(line, " ")
+
+	timelog := &Timelog{
+		Type:      timelogElements[0],
+		Timestamp: timelogElements[1],
+	}
+	if len(timelogElements) == 3 {
+		timelog.Description = timelogElements[2]
+	}
+
+	return timelog, nil
 }
