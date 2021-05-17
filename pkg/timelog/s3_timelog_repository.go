@@ -128,6 +128,10 @@ func lastTimelogEntry(file *os.File) (*Timelog, error) {
 	stat, _ := file.Stat()
 	fileSize := stat.Size()
 
+	if fileSize == 0 {
+		return nil, nil
+	}
+
 	for {
 		offset -= 1
 		file.Seek(offset, io.SeekEnd)
