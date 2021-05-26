@@ -1,7 +1,5 @@
 package timelog
 
-import "time"
-
 const (
 	InType  string = "i"
 	OutType string = "o"
@@ -29,8 +27,7 @@ func (s *TimelogService) Start(timestamp, description string) error {
 	}
 
 	if timelog != nil && timelog.Type == InType {
-		berlin, _ := time.LoadLocation("Europe/Berlin")
-		s.Stop(time.Now().In(berlin).Format("2006-01-02 15:04:05"))
+		s.Stop(timestamp)
 	}
 
 	return s.Repository.Add(&Timelog{
