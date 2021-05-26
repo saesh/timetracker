@@ -38,7 +38,7 @@ func StopTask(service *timelog.TimelogService, request *events.APIGatewayProxyRe
 		return apiResponse(withStatusCode(http.StatusBadRequest), withBody(err.Error()))
 	}
 
-	if payload.Timestamp == nil {
+	if payload.Timestamp == nil || *payload.Timestamp == "" {
 		return apiResponse(withStatusCode(http.StatusBadRequest), withBody("Timestamp is required"))
 	}
 
