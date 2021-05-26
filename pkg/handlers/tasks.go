@@ -19,7 +19,7 @@ func StartTask(service *timelog.TimelogService, request *events.APIGatewayProxyR
 		return apiResponse(withStatusCode(http.StatusBadRequest), withBody(err.Error()))
 	}
 
-	if payload.Description == nil || payload.Timestamp == nil {
+	if payload.Description == nil || payload.Timestamp == nil || *payload.Description == "" || *payload.Timestamp == "" {
 		return apiResponse(withStatusCode(http.StatusBadRequest), withBody("Description and Timestamp are required"))
 	}
 
